@@ -28,6 +28,7 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
   config_param :reload_connections, :bool, :default => true
   config_param :reload_on_failure, :bool, :default => false
   config_param :time_key, :string, :default => nil
+  config_param :add_timestamp, :string, default: false
 
   include Fluent::SetTagKeyMixin
   config_set_default :include_tag_key, false
@@ -138,6 +139,9 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
           target_index = "#{@logstash_prefix}-#{Time.at(time).strftime("#{@logstash_dateformat}")}"
         end
       else
+        if @add_timestamp
+          record.merge!("@timestamp" => Time.at(time).to_datetime.to_s)
+        end
         target_index = @index_name
       end
 
