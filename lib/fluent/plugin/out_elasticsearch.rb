@@ -29,6 +29,7 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
   config_param :reload_on_failure, :bool, :default => false
   config_param :time_key, :string, :default => nil
   config_param :add_timestamp, :string, default: false
+  config_param :timestamp_key, :string, :default => "@timestamp"
 
   include Fluent::SetTagKeyMixin
   config_set_default :include_tag_key, false
@@ -125,13 +126,13 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
     chunk.msgpack_each do |tag, time, record|
       next unless record.is_a? Hash
       if @logstash_format
-        if record.has_key?("@timestamp")
-          time = Time.parse record["@timestamp"]
+        if record.has_key?(@timestamp_key)
+          time = Time.parse record[@timestamp_key]
         elsif record.has_key?(@time_key)
           time = Time.parse record[@time_key]
-          record['@timestamp'] = record[@time_key]
+          record[@timestamp_key] = record[@time_key]
         else
-          record.merge!({"@timestamp" => Time.at(time).to_datetime.to_s})
+          record.merge!({@timestamp_key => Time.at(time).to_datetime.to_s})
         end
         if @utc_index
           target_index = "#{@logstash_prefix}-#{Time.at(time).getutc.strftime("#{@logstash_dateformat}")}"
@@ -140,7 +141,7 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
         end
       else
         if @add_timestamp
-          record.merge!("@timestamp" => Time.at(time).to_datetime.to_s)
+          record.merge!(@timestamp_key => Time.at(time).to_datetime.to_s)
         end
         target_index = @index_name
       end
