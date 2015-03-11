@@ -29,6 +29,7 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
   config_param :reload_on_failure, :bool, :default => false
   config_param :time_key, :string, :default => nil
   config_param :add_timestamp, :string, default: false
+  config_param :scrub, :bool, default: false
   config_param :timestamp_key, :string, :default => "@timestamp"
 
   include Fluent::SetTagKeyMixin
@@ -160,7 +161,13 @@ class Fluent::ElasticsearchOutput < Fluent::BufferedOutput
       end
 
       bulk_message << meta
-      bulk_message << record
+      if @scrub
+        bulk_message << record.each_with_object({}) {|(key, value), encode_record| 
+          encode_record[key] = (value.class == String ? value.scrub : value)
+        }
+      else
+        bulk_message << record
+      end
     end
 
     send(bulk_message) unless bulk_message.empty?
